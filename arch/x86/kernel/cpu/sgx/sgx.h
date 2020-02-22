@@ -104,5 +104,6 @@ void sgx_reclaim_pages(void);
 struct sgx_epc_page *sgx_try_alloc_page(void);
 struct sgx_epc_page *sgx_alloc_page(void *owner, bool reclaim);
 void sgx_free_page(struct sgx_epc_page *page);
+void sgx_update_lepubkeyhash_msrs(u64 *lepubkeyhash, bool enforce);
 #endif /* _X86_SGX_H */
 

@@ -3,4 +3,5 @@ obj-y += \
 	encl.o \
 	ioctl.o \
 	main.o \
-	reclaim.o
+	reclaim.o \
+	virt.o

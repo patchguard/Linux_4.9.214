@@ -327,6 +327,8 @@ config ZONE_DMA
 	  DMA memory allocation support allows devices with less than 32-bit
 	  addressing to allocate within the first 16MB of address space.
 	  Disable if no such devices will be used.
+	  SGX virtualization also adds helpers that are used by KVM to trap
+	  and execute certain ENCLS instructions on behalf of a KVM guest.
 
 	  If unsure, say Y.
 
@@ -1813,6 +1815,17 @@ config INTEL_SGX
 	  including other enclaves, are disallowed by hardware.
 
 	  If unsure, say N.
+
+config INTEL_SGX_VIRTUALIZATION
+	bool "Intel SGX Virtualization"
+	depends on INTEL_SGX && KVM_INTEL
+	help
+	  Enabling support for SGX virtualization enables userspace to allocate
+	  "raw" EPC for the purpose of exposing EPC to a KVM guest, i.e. a
+	  virtual machine, via a device node (/dev/sgx/virt_epc by default).
+
+	  If unsure, say N.
+
 
 config EFI
 	bool "EFI runtime service support"

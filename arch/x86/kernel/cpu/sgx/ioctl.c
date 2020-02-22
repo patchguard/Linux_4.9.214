@@ -583,7 +583,16 @@ static int sgx_get_key_hash(const void *modulus, void *hash)
 	return ret;
 }
 
-static void sgx_update_lepubkeyhash_msrs(u64 *lepubkeyhash, bool enforce)
+//static void sgx_update_lepubkeyhash_msrs(u64 *lepubkeyhash, bool enforce)
+/**
+ * sgx_update_lepubkeyhash_msrs - Write the IA32_SGXLEPUBKEYHASHx MSRs
+ * @lepubkeyhash:	array of desired MSRs values
+ * @enforce:		force WRMSR regardless of cache status
+ *
+ * Write the IA32_SGXLEPUBKEYHASHx MSRs according to @lepubkeyhash if the
+ * last cached value doesn't match the desired value, or if @enforce is %true.
+ */
+void sgx_update_lepubkeyhash_msrs(u64 *lepubkeyhash, bool enforce)
 {
 	u64 *cache;
 	int i;
@@ -597,9 +606,9 @@ static void sgx_update_lepubkeyhash_msrs(u64 *lepubkeyhash, bool enforce)
 	}
 }
 
-static int sgx_einit(struct sgx_sigstruct *sigstruct,
-		     struct sgx_einittoken *token,
-		     struct sgx_epc_page *secs, u64 *lepubkeyhash)
+static int __sgx_einit(struct sgx_sigstruct *sigstruct,
+		       struct sgx_einittoken *token, struct sgx_epc_page *secs,
+		       u64 *lepubkeyhash)
 {
 	int ret;
 
@@ -616,6 +625,7 @@ static int sgx_einit(struct sgx_sigstruct *sigstruct,
 	preempt_enable();
 	return ret;
 }
+
 
 static int sgx_encl_init(struct sgx_encl *encl, struct sgx_sigstruct *sigstruct,
 			 struct sgx_einittoken *token)
@@ -642,7 +652,7 @@ static int sgx_encl_init(struct sgx_encl *encl, struct sgx_sigstruct *sigstruct,
 
 	for (i = 0; i < SGX_EINIT_SLEEP_COUNT; i++) {
 		for (j = 0; j < SGX_EINIT_SPIN_COUNT; j++) {
-			ret = sgx_einit(sigstruct, token, encl->secs.epc_page,
+			ret = __sgx_einit(sigstruct, token, encl->secs.epc_page,
 					mrsigner);
 			if (ret == SGX_UNMASKED_EVENT)
 				continue;

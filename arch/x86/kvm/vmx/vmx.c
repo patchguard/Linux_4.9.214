@@ -1567,9 +1567,43 @@ static int vmx_rtit_ctl_check(struct kvm_vcpu *vcpu, u64 data)
 	return 0;
 }
 
+static bool vmx_is_emulatable(struct kvm_vcpu *vcpu, void *insn, int insn_len)
+{
+	if (unlikely(to_vmx(vcpu)->sgx_enclave_exit)) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
+		return false;
+	}
+	return true;
+}
+
 static int skip_emulated_instruction(struct kvm_vcpu *vcpu)
 {
+	u32 instr_len = vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 	unsigned long rip;
+
+	/*
+	 * Emulating an enclave instruction is not supported as KVM cannot
+	 * access the enclave's memory or its true RIP, e.g. the GUEST_RIP
+	 * field points at the exit point of the enclave, not the RIP that
+	 * actually triggered the VMExit.  But, because most instructions
+	 * that cause VM-Exit will #UD in an enclave, this conundrum is
+	 * handled for us.  There are a few exceptions, notably the debug
+	 * instructions INT1ICEBRK and INT3, as they are allowed in debug
+	 * enclaves and generate #DB/#BP as expected, which KVM might
+	 * intercept.  But again, the CPU does the dirty work and saves an
+	 * instr length of zero so that VMMs don't shoot themselves in the
+	 * foot.  WARN if we try to skip a non-zero length instruction after
+	 * a VMExit from an enclave.
+	 */
+	if (likely(instr_len)) {
+		WARN(to_vmx(vcpu)->sgx_enclave_exit,
+		     "KVM: skipping instruction after SGX enclave VM-Exit");
+
+		rip = kvm_rip_read(vcpu);
+		rip += instr_len;
+		kvm_rip_write(vcpu, rip);
+                goto emulate:
+	}
 
 	/*
 	 * Using VMCS.VM_EXIT_INSTRUCTION_LEN on EPT misconfig depends on
@@ -1584,11 +1618,13 @@ static int skip_emulated_instruction(struct kvm_vcpu *vcpu)
 		rip = kvm_rip_read(vcpu);
 		rip += vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 		kvm_rip_write(vcpu, rip);
+                goto emulate:
 	} else {
 		if (!kvm_emulate_instruction(vcpu, EMULTYPE_SKIP))
 			return 0;
 	}
 
+emulate:
 	/* skipping an emulated instruction also counts */
 	vmx_set_interrupt_shadow(vcpu, 0);
 
@@ -5168,6 +5204,8 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 {
 	gpa_t gpa;
+	if (!vmx_is_emulatable(vcpu, NULL, 0))
+		return 1;
 
 	/*
 	 * A nested guest cannot optimize MMIO vmexits, because we have an
@@ -6640,6 +6678,15 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx->idt_vectoring_info = 0;
 
 	vmx->exit_reason = vmx->fail ? 0xdead : vmcs_read32(VM_EXIT_REASON);
+	/*
+	 * Immediately cache and clear the "exit from SGX enclave" bit so that
+	 * KVM can directly compare exit_reason against the base exit reasons,
+	 * e.g. exit_reason == EXIT_REASON_EXCEPTION_NMI.
+	 */
+	vmx->sgx_enclave_exit =
+		(vmx->exit_reason & VMX_EXIT_REASON_FROM_ENCLAVE);
+	vmx->exit_reason &= ~VMX_EXIT_REASON_FROM_ENCLAVE;
+
 	if ((u16)vmx->exit_reason == EXIT_REASON_MCE_DURING_VMENTRY)
 		kvm_machine_check();
 
@@ -7586,10 +7633,10 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static bool vmx_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
-{
-	return false;
-}
+//static bool vmx_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
+//{
+//	return false;
+//}
 
 static bool vmx_apic_init_signal_blocked(struct kvm_vcpu *vcpu)
 {
@@ -7916,8 +7963,9 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.get_vmcs12_pages = NULL,
 	.nested_enable_evmcs = NULL,
 	.nested_get_evmcs_version = NULL,
-	.need_emulation_on_page_fault = vmx_need_emulation_on_page_fault,
+//	.need_emulation_on_page_fault = vmx_need_emulation_on_page_fault,
 	.apic_init_signal_blocked = vmx_apic_init_signal_blocked,
+	.is_emulatable = vmx_is_emulatable,
 };
 
 static void vmx_cleanup_l1d_flush(void)

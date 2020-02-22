@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include "driver.h"
 #include "encls.h"
+#include "virt.h"
 
 struct sgx_epc_section sgx_epc_sections[SGX_MAX_EPC_SECTIONS];
 int sgx_nr_epc_sections;
@@ -265,6 +266,9 @@ static int  __init  sgx_init(void)
 		goto err_page_cache;
 
 	ret = sgx_drv_init();
+#ifdef CONFIG_INTEL_SGX_VIRTUALIZATION
+	ret = sgx_virt_epc_init() ? ret : 0;
+#endif
 	if (ret)
 		goto err_kthread;
 

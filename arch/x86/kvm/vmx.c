@@ -774,6 +774,9 @@ struct vcpu_vmx {
 	int ple_window;
 	bool ple_window_dirty;
 
+	/* Exit from SGX enclave */
+	bool sgx_enclave_exit;
+
 	/* Support for PML */
 #define PML_ENTITY_NUM		512
 	struct page *pml_pg;
@@ -11022,6 +11025,8 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	/* update exit information fields: */
 
 	vmcs12->vm_exit_reason = exit_reason;
+	if (to_vmx(vcpu)->sgx_enclave_exit)
+		vmcs12->vm_exit_reason |= VMX_EXIT_REASON_FROM_ENCLAVE;
 	vmcs12->exit_qualification = exit_qualification;
 
 	vmcs12->vm_exit_intr_info = exit_intr_info;

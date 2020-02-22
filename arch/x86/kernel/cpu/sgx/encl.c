@@ -262,7 +262,7 @@ static void sgx_vma_open(struct vm_area_struct *vma)
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #endif
 
-#define LINUX_VERSION_CODE KERNEL_VERSION(4,9,212)
+#define LINUX_VERSION_CODE KERNEL_VERSION(4,9,214)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,1,0))
 static unsigned int sgx_vma_fault(struct vm_fault *vmf)
