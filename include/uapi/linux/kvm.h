@@ -873,6 +873,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_PPC_HTM 132
 #define KVM_CAP_S390_BPB 152
 #define KVM_CAP_GET_MSR_FEATURES 153
+#define KVM_CAP_SGX_ATTRIBUTE 200
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

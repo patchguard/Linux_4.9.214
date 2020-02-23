@@ -805,6 +805,9 @@ struct kvm_arch {
 	bool x2apic_broadcast_quirk_disabled;
 
 	struct task_struct *nx_lpage_recovery_thread;
+
+	/* Guest can access the SGX PROVISIONKEY. */
+	bool sgx_provisioning_allowed;
 };
 
 struct kvm_vm_stat {

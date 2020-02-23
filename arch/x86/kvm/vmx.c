@@ -797,6 +797,9 @@ struct vcpu_vmx {
 	 */
 	u64 msr_ia32_feature_control;
 	u64 msr_ia32_feature_control_valid_bits;
+
+	/* SGX Launch Control public key hash */
+	u64 msr_ia32_sgxlepubkeyhash[4];
 };
 
 enum segment_cache_field {
@@ -8198,6 +8201,22 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
 	}
 	return false;
 }
+
+/*
+static bool nested_vmx_exit_handled_encls(struct kvm_vcpu *vcpu,
+					  struct vmcs12 *vmcs12)
+{
+	u32 encls_leaf;
+//disable SECONDARY_EXEC_ENCLS_EXITING because it should be in vmx/vmx.c
+//	if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENCLS_EXITING))
+//		return false;
+
+	encls_leaf = vcpu->arch.regs[VCPU_REGS_RAX];
+	if (encls_leaf > 62)
+		encls_leaf = 63;
+	return (vmcs12->encls_exiting_bitmap & (1ULL << encls_leaf));
+}
+*/
 
 /*
  * Return 1 if we should exit from L2 to L1 to handle an exit, or 0 if we

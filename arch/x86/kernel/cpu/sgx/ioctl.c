@@ -13,6 +13,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
+#include <asm/sgx.h>
 #include "driver.h"
 #include "encl.h"
 #include "encls.h"
@@ -785,6 +786,8 @@ out:
 	fput(attribute_file);
 	return ret;
 }
+
+EXPORT_SYMBOL_GPL(sgx_set_attribute);
 
 long sgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {

@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <asm/user.h>
 #include <asm/fpu/xstate.h>
+#include <asm/sgx.h>
 #include "cpuid.h"
 #include "lapic.h"
 #include "mmu.h"
@@ -113,7 +114,24 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	if (best && (best->eax & (F(XSAVES) | F(XSAVEC))))
 		best->ebx = xstate_required_size(vcpu->arch.xcr0, true);
 
+	/*
+	 * Bits 127:0 of the allowed SECS.ATTRIBUTES (CPUID.0x12.0x1) enumerate
+	 * the supported XSAVE Feature Request Mask (XFRM), i.e. the enclave's
+	 * requested XCR0 value.  The enclave's XFRM must be a subset of XCRO
+	 * at the time of EENTER, thus adjust the allowed XFRM by the guest's
+	 * supported XCR0.  Similar to XCR0 handling, FP and SSE are forced to
+	 * '1' even on CPUs that don't support XSAVE.
+	 */
+	best = kvm_find_cpuid_entry(vcpu, 0x12, 0x1);
+	if (best) {
+		best->ecx &= vcpu->arch.guest_supported_xcr0 & 0xffffffff;
+		best->edx &= vcpu->arch.guest_supported_xcr0 >> 32;
+		best->ecx |= XFEATURE_MASK_FPSSE;
+	}
+
+
 	kvm_x86_ops->fpu_activate(vcpu);
+
 
 	/*
 	 * The existing code assumes virtual address is 48-bit in the canonical
@@ -210,9 +228,10 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	vcpu->arch.cpuid_nent = cpuid->nent;
 	cpuid_fix_nx_cap(vcpu);
 	kvm_apic_set_version(vcpu);
-	kvm_x86_ops->cpuid_update(vcpu);
+	//kvm_x86_ops->cpuid_update(vcpu);
 	r = kvm_update_cpuid(vcpu);
-
+	if (!r)
+		kvm_x86_ops->cpuid_update(vcpu);
 out:
 	vfree(cpuid_entries);
 	return r;
@@ -233,8 +252,10 @@ int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
 		goto out;
 	vcpu->arch.cpuid_nent = cpuid->nent;
 	kvm_apic_set_version(vcpu);
-	kvm_x86_ops->cpuid_update(vcpu);
+	//kvm_x86_ops->cpuid_update(vcpu);
 	r = kvm_update_cpuid(vcpu);
+	if (!r)
+		kvm_x86_ops->cpuid_update(vcpu);
 out:
 	return r;
 }
@@ -370,19 +391,36 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		F(BMI2) | F(ERMS) | f_invpcid | F(RTM) | f_mpx | F(RDSEED) |
 		F(ADX) | F(SMAP) | F(AVX512F) | F(AVX512PF) | F(AVX512ER) |
 		F(AVX512CD) | F(CLFLUSHOPT) | F(CLWB) | F(AVX512DQ) |
-		F(AVX512BW) | F(AVX512VL);
+		F(AVX512BW) | F(AVX512VL) | F(SGX);
 
 	/* cpuid 0xD.1.eax */
 	const u32 kvm_cpuid_D_1_eax_x86_features =
 		F(XSAVEOPT) | F(XSAVEC) | F(XGETBV1) | f_xsaves;
 
 	/* cpuid 7.0.ecx*/
-	const u32 kvm_cpuid_7_0_ecx_x86_features = F(PKU) | 0 /*OSPKE*/;
+	const u32 kvm_cpuid_7_0_ecx_x86_features = F(PKU) | 0 /*OSPKE*/ |  F(SGX_LC);
 
 	/* cpuid 7.0.edx*/
 	const u32 kvm_cpuid_7_0_edx_x86_features =
 		F(SPEC_CTRL) | F(SPEC_CTRL_SSBD) | F(ARCH_CAPABILITIES) |
 		F(INTEL_STIBP) | F(MD_CLEAR);
+
+	/* cpuid 12.0.eax*/
+	const u32 kvm_cpuid_12_0_eax_x86_features =
+		F(SGX1) | F(SGX2) | 0 /* Reserved */ | 0 /* Reserved */ |
+		0 /* Reserved */ | 0 /* ENCLV */ | 0 /* ENCLS_C */;
+
+	/* cpuid 12.0.ebx*/
+	const u32 kvm_cpuid_12_0_ebx_sgx_features =
+		SGX_MISC_EXINFO;
+
+	/* cpuid 12.1.eax*/
+	const u32 kvm_cpuid_12_1_eax_sgx_features =
+		SGX_ATTR_DEBUG | SGX_ATTR_MODE64BIT | SGX_ATTR_PROVISIONKEY |
+		SGX_ATTR_EINITTOKENKEY | SGX_ATTR_KSS;
+
+	/* cpuid 12.1.ebx*/
+	const u32 kvm_cpuid_12_1_ebx_sgx_features = 0;
 
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
@@ -397,7 +435,8 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	switch (function) {
 	case 0:
-		entry->eax = min(entry->eax, (u32)0xd);
+		//entry->eax = min(entry->eax, (u32)0xd);
+		entry->eax = min(entry->eax, (u32)0x12);
 		break;
 	case 1:
 		entry->edx &= kvm_cpuid_1_edx_x86_features;
@@ -581,6 +620,42 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		}
 		break;
 	}
+
+	case 0x12:
+		/* Intel SGX */
+		if (!boot_cpu_has(X86_FEATURE_SGX)) {
+			entry->eax = entry->ebx = entry->ecx = entry->edx = 0;
+			break;
+		}
+
+		/*
+		 * Index 0: Sub-features, MISCSELECT (a.k.a extended features)
+		 * and max enclave sizes.   The SGX sub-features and MISCSELECT
+		 * are restricted by KVM and x86_capabilities (like most
+		 * feature flags), while enclave size is unrestricted.
+		 */
+		entry->eax &= kvm_cpuid_12_0_eax_x86_features;
+		entry->ebx &= kvm_cpuid_12_0_ebx_sgx_features;
+		cpuid_mask(&entry->eax, CPUID_LNX_3);
+		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
+
+		/*
+		 * Index 1: SECS.ATTRIBUTES.  ATTRIBUTES are restricted a la
+		 * feature flags.  Unconditionally advertise all supported
+		 * flags, even privileged attributes that require explicit
+		 * opt-in from userspace.  ATTRIBUTES.XFRM is not adjusted
+		 * as userspace is expected to derive it from supported XCR0.
+		 */
+		if (*nent >= maxnent)
+			goto out;
+		do_cpuid_1_ent(++entry, 0x12, 0x1);
+		entry->eax &= kvm_cpuid_12_1_eax_sgx_features;
+		entry->ebx &= kvm_cpuid_12_1_ebx_sgx_features;
+		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
+		++*nent;
+		break;
+
+
 	case KVM_CPUID_SIGNATURE: {
 		static const char signature[12] = "KVMKVMKVM\0\0";
 		const u32 *sigptr = (const u32 *)signature;

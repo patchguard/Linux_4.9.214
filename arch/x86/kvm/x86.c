@@ -66,6 +66,7 @@
 #include <asm/pvclock.h>
 #include <asm/div64.h>
 #include <asm/irq_remapping.h>
+#include <asm/sgx.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -2802,6 +2803,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PCI_2_3:
 #endif
 	case KVM_CAP_GET_MSR_FEATURES:
+#ifdef CONFIG_INTEL_SGX_VIRTUALIZATION
+	case KVM_CAP_SGX_ATTRIBUTE:
+#endif
 		r = 1;
 		break;
 	case KVM_CAP_ADJUST_CLOCK:
@@ -4099,6 +4103,23 @@ split_irqchip_unlock:
 
 		r = 0;
 		break;
+#ifdef CONFIG_INTEL_SGX_VIRTUALIZATION
+	case KVM_CAP_SGX_ATTRIBUTE: {
+		u64 allowed_attributes = 0;
+
+		r = sgx_set_attribute(&allowed_attributes, cap->args[0]);
+		if (r)
+			break;
+
+		/* KVM only supports the PROVISIONKEY privileged attribute. */
+		if ((allowed_attributes & SGX_ATTR_PROVISIONKEY) &&
+		    !(allowed_attributes & ~SGX_ATTR_PROVISIONKEY))
+			kvm->arch.sgx_provisioning_allowed = true;
+		else
+			r = -EINVAL;
+		break;
+	}
+#endif
 	default:
 		r = -EINVAL;
 		break;
