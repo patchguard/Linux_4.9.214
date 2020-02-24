@@ -930,6 +930,7 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(EOI_EXIT_BITMAP2, eoi_exit_bitmap2),
 	FIELD64(EOI_EXIT_BITMAP3, eoi_exit_bitmap3),
 	FIELD64(XSS_EXIT_BITMAP, xss_exit_bitmap),
+	FIELD64(ENCLS_EXITING_BITMAP, encls_exiting_bitmap),
 	FIELD64(GUEST_PHYSICAL_ADDRESS, guest_physical_address),
 	FIELD64(VMCS_LINK_POINTER, vmcs_link_pointer),
 	FIELD64(GUEST_IA32_DEBUGCTL, guest_ia32_debugctl),
