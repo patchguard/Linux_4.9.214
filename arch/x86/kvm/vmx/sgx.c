@@ -4,7 +4,7 @@
 #include <asm/sgx.h>
 #include "cpuid.h"
 #include "kvm_cache_regs.h"
-//#include "vmx.h"
+#include "../vmx.h"
 #include "x86.h"
 
 static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
@@ -22,6 +22,15 @@ static inline bool sgx_is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)
 	return sgx_get_canonical(la, vcpu_virt_addr_bits(vcpu)) != la;
 }
 
+
+static inline bool guest_cpuid_has_sgx2(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
+        //todo: fix the value
+	return best && (best->edx & bit(X86_FEATURE_SGX2));
+}
 
 /*
  * ENCLS's memory operands use a fixed segment (DS) and a fixed
@@ -113,6 +122,27 @@ static int sgx_gva_to_hva(struct kvm_vcpu *vcpu, gva_t gva, bool write,
 	return 0;
 }
 
+static inline unsigned long kvm_rax_read(struct kvm_vcpu *vcpu)
+{
+	return kvm_register_read(vcpu, VCPU_REGS_RAX);
+}
+
+static inline unsigned long kvm_rbx_read(struct kvm_vcpu *vcpu)
+{
+        return kvm_register_read(vcpu, VCPU_REGS_RBX);
+}
+
+static inline unsigned long kvm_rcx_read(struct kvm_vcpu *vcpu)
+{
+        return kvm_register_read(vcpu, VCPU_REGS_RCX);
+}
+
+static inline unsigned long kvm_rdx_read(struct kvm_vcpu *vcpu)
+{
+        return kvm_register_read(vcpu, VCPU_REGS_RDX);
+}
+
+
 
 static inline void kvm_rax_write(struct kvm_vcpu *vcpu, unsigned long val)
 {
@@ -176,7 +206,7 @@ handle_fault:
 	 * likely than a bad userspace address.
 	 */
 	if ((trapnr == PF_VECTOR || !boot_cpu_has(X86_FEATURE_SGX2)) &&
-	    guest_cpuid_has(vcpu, X86_FEATURE_SGX2)) {
+	    guest_cpuid_has_sgx2(vcpu)) {
 		ex.vector = PF_VECTOR;
 		ex.error_code = PFERR_PRESENT_MASK | PFERR_WRITE_MASK |
 				PFERR_SGX_MASK;

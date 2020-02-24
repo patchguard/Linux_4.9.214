@@ -55,6 +55,7 @@
 
 #include "trace.h"
 #include "pmu.h"
+#include "vmx.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 #define __ex_clear(x, reg) \
@@ -338,6 +339,10 @@ static const struct kernel_param_ops vmentry_l1d_flush_ops = {
 	.get = vmentry_l1d_flush_get,
 };
 module_param_cb(vmentry_l1d_flush, &vmentry_l1d_flush_ops, NULL, 0644);
+
+
+
+#if 0
 
 #define NR_AUTOLOAD_MSRS 8
 
@@ -650,6 +655,8 @@ struct pi_desc {
 	u32 rsvd[6];
 } __aligned(64);
 
+#endif 
+
 static bool pi_test_and_set_on(struct pi_desc *pi_desc)
 {
 	return test_and_set_bit(POSTED_INTR_ON,
@@ -691,6 +698,7 @@ static inline int pi_test_sn(struct pi_desc *pi_desc)
 			(unsigned long *)&pi_desc->control);
 }
 
+#if 0
 struct vmx_msrs {
 	unsigned int		nr;
 	struct vmx_msr_entry	val[NR_AUTOLOAD_MSRS];
@@ -801,6 +809,7 @@ struct vcpu_vmx {
 	/* SGX Launch Control public key hash */
 	u64 msr_ia32_sgxlepubkeyhash[4];
 };
+#endif
 
 enum segment_cache_field {
 	SEG_FIELD_SEL = 0,
@@ -811,7 +820,7 @@ enum segment_cache_field {
 	SEG_FIELD_NR = 4
 };
 
-static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
+struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_vmx, vcpu);
 }
