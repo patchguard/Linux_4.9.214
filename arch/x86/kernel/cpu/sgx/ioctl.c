@@ -787,6 +787,24 @@ out:
 	return ret;
 }
 
+int sgx_set_attribute(u64 *allowed_attributes, unsigned int attribute_fd)
+{
+       struct file *attribute_file;
+
+       attribute_file = fget(attribute_fd);
+       if (!attribute_file)
+               return -EINVAL;
+
+       if (attribute_file->f_op != &sgx_provision_fops) {
+               fput(attribute_file);
+               return -EINVAL;
+       }
+       fput(attribute_file);
+
+       *allowed_attributes |= SGX_ATTR_PROVISIONKEY;
+       return 0;
+}
+
 EXPORT_SYMBOL_GPL(sgx_set_attribute);
 
 long sgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)

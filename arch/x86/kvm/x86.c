@@ -4508,6 +4508,8 @@ void kvm_get_segment(struct kvm_vcpu *vcpu,
 {
 	kvm_x86_ops->get_segment(vcpu, var, seg);
 }
+EXPORT_SYMBOL_GPL(kvm_get_segment);
+
 
 gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access,
 			   struct x86_exception *exception)
@@ -5759,6 +5761,27 @@ static void kvm_vcpu_do_singlestep(struct kvm_vcpu *vcpu, int *r)
 		kvm_queue_exception(vcpu, DB_VECTOR);
 	}
 }
+
+int kvm_skip_emulated_instruction(struct kvm_vcpu *vcpu)
+{
+	unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
+	int r;
+
+	kvm_x86_ops->skip_emulated_instruction(vcpu);
+
+	/*
+	 * rflags is the old, "raw" value of the flags.  The new value has
+	 * not been saved yet.
+	 *
+	 * This is correct even for TF set by the guest, because "the
+	 * processor will not generate this exception after the instruction
+	 * that sets the TF flag".
+	 */
+	if (unlikely(rflags & X86_EFLAGS_TF))
+		kvm_vcpu_do_singlestep(vcpu,&r);
+	return r;
+}
+EXPORT_SYMBOL_GPL(kvm_skip_emulated_instruction);
 
 static bool kvm_vcpu_check_breakpoint(struct kvm_vcpu *vcpu, int *r)
 {
