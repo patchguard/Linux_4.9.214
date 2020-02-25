@@ -5840,12 +5840,10 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
         if(kvm_x86_ops)
 		printk("kvm_x86_ops->is_emulatable = %p\n",kvm_x86_ops->is_emulatable);
 #endif
-	//if (kvm_x86_ops->is_emulatable &&  unlikely(!kvm_x86_ops->is_emulatable(vcpu, insn, insn_len)))
-	if (kvm_x86_ops->is_emulatable &&  unlikely(!kvm_x86_ops->is_emulatable(vcpu, insn, insn_len)))
-	{
+        if(kvm_x86_ops->is_emulatable)
 		printk("kvm_x86_ops->is_emulatable = %p\n",kvm_x86_ops->is_emulatable);
+	if (kvm_x86_ops->is_emulatable &&  unlikely(!kvm_x86_ops->is_emulatable(vcpu, insn, insn_len)))
 	        return EMULATE_DONE;
-        }
 	vcpu->arch.l1tf_flush_l1d = true;
 
 	/*
