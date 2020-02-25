@@ -8244,8 +8244,11 @@ static int __init vmx_init(void)
 	}
 #endif
 
+        printk("(%s,%d)kvm_x86_ops->is_emulatable = %p\n",__FUNC__,__LINE__,kvm_x86_ops->is_emulatable);
+
 	r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx),
 		     __alignof__(struct vcpu_vmx), THIS_MODULE);
+        printk("(%s,%d)kvm_x86_ops->is_emulatable = %p\n",__FUNC__,__LINE__,kvm_x86_ops->is_emulatable);
 	if (r)
 		return r;
 

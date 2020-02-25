@@ -11701,6 +11701,16 @@ static void vmx_setup_mce(struct kvm_vcpu *vcpu)
 			~FEATURE_CONTROL_LMCE;
 }
 
+static bool vmx_is_emulatable(struct kvm_vcpu *vcpu, void *insn, int insn_len)
+{
+        if (unlikely(to_vmx(vcpu)->sgx_enclave_exit)) {
+                kvm_queue_exception(vcpu, UD_VECTOR);
+                return false;
+        }
+        return true;
+}
+
+
 static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
@@ -11832,6 +11842,8 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 #endif
 
 	.setup_mce = vmx_setup_mce,
+        .is_emulatable = vmx_is_emulatable,
+
 };
 
 static void vmx_cleanup_l1d_flush(void)

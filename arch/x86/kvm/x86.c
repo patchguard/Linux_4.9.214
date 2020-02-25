@@ -5834,10 +5834,18 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	//bool write_fault_to_spt = vcpu->arch.write_fault_to_shadow_pgtable;
 
 	bool write_fault_to_spt;
-
-	if (unlikely(!kvm_x86_ops->is_emulatable(vcpu, insn, insn_len)))
-		return EMULATE_DONE;
-
+#if 0
+	printk("kvm_x86_ops = %p\n",kvm_x86_ops);
+	printk("vcpu = %p\n",vcpu);
+        if(kvm_x86_ops)
+		printk("kvm_x86_ops->is_emulatable = %p\n",kvm_x86_ops->is_emulatable);
+#endif
+	//if (kvm_x86_ops->is_emulatable &&  unlikely(!kvm_x86_ops->is_emulatable(vcpu, insn, insn_len)))
+	if (kvm_x86_ops->is_emulatable &&  unlikely(!kvm_x86_ops->is_emulatable(vcpu, insn, insn_len)))
+	{
+		printk("kvm_x86_ops->is_emulatable = %p\n",kvm_x86_ops->is_emulatable);
+	        return EMULATE_DONE;
+        }
 	vcpu->arch.l1tf_flush_l1d = true;
 
 	/*
