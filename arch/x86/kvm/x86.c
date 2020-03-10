@@ -2628,8 +2628,6 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_MCG_CAP:
 	case MSR_IA32_MCG_CTL:
 	case MSR_IA32_MCG_STATUS:
-	case MSR_IA32_MC0_CTL ... MSR_IA32_MCx_CTL(KVM_MAX_MCE_BANKS) - 1:
-		return get_msr_mce(vcpu, msr_info->index, &msr_info->data);
 	case MSR_K7_CLK_CTL:
 		/*
 		 * Provide expected ramp-up count for K7. All other
@@ -2672,6 +2670,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		msr_info->data = vcpu->arch.osvw.status;
 		break;
+        case MSR_IA32_SGXLEPUBKEYHASH0 ... MSR_IA32_SGXLEPUBKEYHASH3:
+                msr_info->data = msr_info->index;
+                break;
 	default:
 		if (kvm_pmu_is_valid_msr(vcpu, msr_info->index))
 			return kvm_pmu_get_msr(vcpu, msr_info->index, &msr_info->data);
@@ -5839,9 +5840,9 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	printk("vcpu = %p\n",vcpu);
         if(kvm_x86_ops)
 		printk("kvm_x86_ops->is_emulatable = %p\n",kvm_x86_ops->is_emulatable);
-#endif
         if(kvm_x86_ops->is_emulatable)
 		printk("kvm_x86_ops->is_emulatable = %p\n",kvm_x86_ops->is_emulatable);
+#endif
 	if (kvm_x86_ops->is_emulatable &&  unlikely(!kvm_x86_ops->is_emulatable(vcpu, insn, insn_len)))
 	        return EMULATE_DONE;
 	vcpu->arch.l1tf_flush_l1d = true;

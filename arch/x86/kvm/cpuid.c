@@ -398,7 +398,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		F(XSAVEOPT) | F(XSAVEC) | F(XGETBV1) | f_xsaves;
 
 	/* cpuid 7.0.ecx*/
-	const u32 kvm_cpuid_7_0_ecx_x86_features = F(PKU) | 0 /*OSPKE*/ |  F(SGX_LC);
+	const u32 kvm_cpuid_7_0_ecx_x86_features = F(PKU) | F(SGX_LC);
 
 	/* cpuid 7.0.edx*/
 	const u32 kvm_cpuid_7_0_edx_x86_features =
@@ -526,6 +526,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 			entry->edx = 0;
 		}
 		entry->eax = 0;
+                //printk("cpuid_event for 7 : eax=%p,ebx=%p,ecx=%p,edx=%p\n",entry->eax,entry->ebx,entry->ecx,entry->edx);
 		break;
 	}
 	case 9:
@@ -625,6 +626,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		/* Intel SGX */
 		if (!boot_cpu_has(X86_FEATURE_SGX)) {
 			entry->eax = entry->ebx = entry->ecx = entry->edx = 0;
+                printk("cpuid_event without X86_FEATURE_SGX\n");
 			break;
 		}
 
@@ -648,11 +650,13 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		 */
 		if (*nent >= maxnent)
 			goto out;
+                //printk("cpuid_event for 0x12(0) : eax=%p,ebx=%p,ecx=%p,edx=%p\n",entry->eax,entry->ebx,entry->ecx,entry->edx);
 		do_cpuid_1_ent(++entry, 0x12, 0x1);
 		entry->eax &= kvm_cpuid_12_1_eax_sgx_features;
 		entry->ebx &= kvm_cpuid_12_1_ebx_sgx_features;
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		++*nent;
+                //printk("cpuid_event for 0x12(1) : eax=%p,ebx=%p,ecx=%p,edx=%p\n",entry->eax,entry->ebx,entry->ecx,entry->edx);
 		break;
 
 

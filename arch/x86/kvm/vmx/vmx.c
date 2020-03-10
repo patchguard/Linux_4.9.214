@@ -1880,9 +1880,12 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vcpu->arch.mcg_ext_ctl;
 		break;
 	case MSR_IA32_FEATURE_CONTROL:
+                printk("MSR_IA32_FEATURE_CONTROL(vmx/vmx.c)  vmx->msr_ia32_feature_control=%x\n",vmx->msr_ia32_feature_control);
 		msr_info->data = vmx->msr_ia32_feature_control;
 		break;
 	case MSR_IA32_SGXLEPUBKEYHASH0 ... MSR_IA32_SGXLEPUBKEYHASH3:
+                printk("rdmsr:host_initiated = %x\tguest_cpuid_has(vcpu, X86_FEATURE_SGX_LC)=%x\n",msr_info->host_initiated,guest_cpuid_has(vcpu, X86_FEATURE_SGX_LC));
+
 		if (!msr_info->host_initiated &&
 		    !guest_cpuid_has(vcpu, X86_FEATURE_SGX_LC))
 			return 1;
@@ -2136,6 +2139,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vmx_write_encls_bitmap(vcpu, NULL);
 		break;
 	case MSR_IA32_SGXLEPUBKEYHASH0 ... MSR_IA32_SGXLEPUBKEYHASH3:
+                printk("setmsr:host_initiated = %x\tguest_cpuid_has(vcpu, X86_FEATURE_SGX_LC)=%x\n",msr_info->host_initiated,guest_cpuid_has(vcpu, X86_FEATURE_SGX_LC));
 		if (!msr_info->host_initiated &&
 		    (!guest_cpuid_has(vcpu, X86_FEATURE_SGX_LC) ||
 		    ((vmx->msr_ia32_feature_control & FEATURE_CONTROL_LOCKED) &&
@@ -5575,7 +5579,7 @@ static int handle_vmx_instruction(struct kvm_vcpu *vcpu)
 static inline bool sgx_enabled_in_guest_bios(struct kvm_vcpu *vcpu)
 {
 	const u64 bits = FEATURE_CONTROL_SGX_ENABLE | FEATURE_CONTROL_LOCKED;
-
+printk("sgx_enabled_in_guest_bios is called with msr_ia32_feature_control = %p,bits = %p\n",(to_vmx(vcpu)->msr_ia32_feature_control&bits,bits);
 	return (to_vmx(vcpu)->msr_ia32_feature_control & bits) == bits;
 }
 

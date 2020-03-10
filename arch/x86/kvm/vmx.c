@@ -3239,8 +3239,15 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vcpu->arch.mcg_ext_ctl;
 		break;
 	case MSR_IA32_FEATURE_CONTROL:
+                printk("MSR_IA32_FEATURE_CONTROL(vmx.c)  to_vmx(vcpu)->msr_ia32_feature_control=%x\n",to_vmx(vcpu)->msr_ia32_feature_control);
+                printk("MSR_IA32_FEATURE_CONTROL(vmx.c)  to_vmx(vcpu)->msr_ia32_feature_control_valid_bits=%x\n",to_vmx(vcpu)->msr_ia32_feature_control_valid_bits);
 		msr_info->data = to_vmx(vcpu)->msr_ia32_feature_control;
 		break;
+        case MSR_IA32_SGXLEPUBKEYHASH0 ... MSR_IA32_SGXLEPUBKEYHASH3:
+
+                printk("MSR_IA32_SGXLEPUBKEYHASH0\n");
+                break;
+
 	case MSR_IA32_VMX_BASIC ... MSR_IA32_VMX_VMFUNC:
 		if (!nested_vmx_allowed(vcpu))
 			return 1;
@@ -9571,7 +9578,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	vmx->nested.current_vmptr = -1ull;
 	vmx->nested.current_vmcs12 = NULL;
 
-	vmx->msr_ia32_feature_control_valid_bits = FEATURE_CONTROL_LOCKED;
+	vmx->msr_ia32_feature_control_valid_bits = FEATURE_CONTROL_LOCKED|FEATURE_CONTROL_SGX_ENABLE|FEATURE_CONTROL_SGX_LE_WR;
 
 	/*
 	 * Enforce invariant: pi_desc.nv is always either POSTED_INTR_VECTOR
